@@ -18,9 +18,10 @@ func RandomNumber(s *discordgo.Session, i *discordgo.InteractionCreate, count in
 			Content: "<a:pislicesd20:1416741138269999145>",
 		},
 	})
+	r := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), rand.Uint64()))
 	values := make([]uint32, count)
 	for i := range count {
-		values[i] = rand.Uint32N(max)
+		values[i] = r.Uint32N(max)
 		if dnd {
 			values[i]++
 		}
@@ -52,10 +53,11 @@ func D10(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if err != nil {
 		log.Printf("ERROR: Unable to send message for D20 throw\n%s", err)
 	}
-	d10 := rand.Uint32N(10)
+	r := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), rand.Uint64()))
+	d10 := r.Uint32N(10)
 	d10++
 	message := fmt.Sprintf("Congrats you got %d", d10)
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 2)
 
 	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &message,
@@ -72,10 +74,11 @@ func D20(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if err != nil {
 		log.Printf("ERROR: Unable to send message for D10 throw\n%s", err)
 	}
-	d20 := rand.Uint32N(20)
+	r := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), rand.Uint64()))
+	d20 := r.Uint32N(20)
 	d20++
 	message := fmt.Sprintf("Congrats you got %d", d20)
-	time.Sleep(time.Second * 3)
+	time.Sleep(time.Second * 2)
 
 	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &message,
