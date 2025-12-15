@@ -1,15 +1,29 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
+	"math/rand/v2"
+	"os"
+	"os/exec"
 	"regexp"
-	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+const charset = "abcdefghijklmnopqrstuvwxyz" +
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func StringWithCharset(length int, charset string) string {
+	r := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), uint64(time.Now().UnixNano())))
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[r.IntN(len(charset))]
+	}
+	return string(b)
+}
 
 func isTiktokDomain(u string) bool {
 	pattern := `^(https?:\/\/)?([a-zA-Z0-9-]+\.)*tiktok\.com\/?`
@@ -17,71 +31,60 @@ func isTiktokDomain(u string) bool {
 	return re.MatchString(u)
 }
 
-func Processtiktok(s *discordgo.Session, tiktokURL string, m *discordgo.InteractionCreate) error {
+func Processtiktok(s *discordgo.Session, tiktokURL string, i *discordgo.InteractionCreate) error {
+	var message string
 	if !isTiktokDomain(tiktokURL) {
-		err := s.InteractionRespond(m.Interaction, &discordgo.InteractionResponse{
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "Domain isn't owned by TikTok",
+				Content: "URL must be tiktok",
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 		if err != nil {
-			log.Printf("Error acknowledging interaction: %v\n", err)
-			return fmt.Errorf("error acknowledging interaction: %w", err)
+			fmt.Printf("ERROR: Unable to send reponse to wrong link\n%s", err)
 		}
-		return nil
+		return errors.New("Some moron sent not tiktok all good")
 	}
-
-	err := s.InteractionRespond(m.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: "Checking...",
-			Flags:   discordgo.MessageFlagsEphemeral,
-		},
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 	})
 	if err != nil {
-		log.Printf("Error sending checking message: %v\n", err)
-		return fmt.Errorf("error acknowledging interaction: %w", err)
+		log.Printf("Error sending thinking message: %v\n", err)
+		return err
 	}
 
-	resp, err := http.Get(tiktokURL)
+	re := regexp.MustCompile("(?i)[A-Za-z0-9]+_540p_[0-9]+-0")
+	tiktokcheckcmd := exec.Command("yt-dlp", "-F", tiktokURL)
+	output, err := tiktokcheckcmd.Output()
+	quality_parameter := re.FindString(string(output))
+	tmp_name := StringWithCharset(20, charset)
+	full_file_name := fmt.Sprintf("/tmp/%s.mp4", tmp_name)
+	tiktokstealcmd := exec.Command("yt-dlp", "-f", quality_parameter, "-o", full_file_name, tiktokURL)
+	err = tiktokstealcmd.Start()
 	if err != nil {
-		log.Printf("Failed to get URL: %v\n", err)
-		return fmt.Errorf("failed to get URL: %w", err)
+		fmt.Printf("lol ha funyn how happened %s\n", err)
 	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
+	tiktokstealcmd.Wait()
+	file, err := os.Open(full_file_name)
 	if err != nil {
-		log.Printf("Failed to read response body: %v\n", err)
-		return fmt.Errorf("failed to read response body: %w", err)
+		fmt.Printf("ERROR: %s\n", err)
 	}
-
-	bodyStr := string(body)
-	imagePattern := "(?i)https://[A-Za-z][0-9]+-([A-Za-z]+(-[A-Za-z]+)+)[0-9]+\\.tiktokcdn-us\\.com/"
-	videoPattern := `https:\/\/v19-webapp-prime\.tiktok\.com\/.*$`
-	re := regexp.MustCompile(imagePattern)
-	revideo := regexp.MustCompile(videoPattern)
-
-	detectedURLs := re.FindAllString(bodyStr, -1)
-	detectedVideo := revideo.FindAllString(bodyStr, -1)
-	fmt.Println(detectedURLs)
-	fmt.Println(detectedVideo)
-	var message string
-	if len(detectedURLs) > 0 {
-		message = "Detected TikTok CDN URLs:\n" + strings.Join(detectedURLs, "\n")
-	} else if len(detectedVideo) > 0 {
-		message = "Video found:\n" + strings.Join(detectedVideo, "\n")
-	} else {
-		message = "Nothing was found"
+	_, err = s.ChannelFileSend(i.ChannelID, full_file_name, file)
+	message = fmt.Sprintf("File size was too big to send to discord, consider using yt-dlp to install it manually yourself\n Here is the link: %s", tiktokURL)
+	if err != nil {
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &message,
+		})
 	}
-
-	_, err = s.FollowupMessageCreate(m.Interaction, true, &discordgo.WebhookParams{
-		Content: message,
+	os.Remove(full_file_name)
+	message = "dont read this :)"
+	messagesent, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Content: &message,
 	})
+	s.ChannelMessageDelete(messagesent.ChannelID, messagesent.ID)
 	if err != nil {
-		fmt.Println("error creating followup message")
+		fmt.Printf("ERROR: Unable to edit good send video message\n%s", err)
 	}
 	return nil
 }
