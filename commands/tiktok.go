@@ -65,7 +65,15 @@ func Processtiktok(s *discordgo.Session, tiktokURL string, i *discordgo.Interact
 	if err != nil {
 		fmt.Printf("lol ha funyn how happened %s\n", err)
 	}
-	tiktokstealcmd.Wait()
+	err = tiktokstealcmd.Wait()
+	if err != nil {
+		message = "Images arent supported"
+		_, _ = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+			Content: &message,
+			Flags:   discordgo.MessageFlagsEphemeral,
+		})
+		return err
+	}
 	file, err := os.Open(full_file_name)
 	if err != nil {
 		fmt.Printf("ERROR: %s\n", err)
@@ -81,6 +89,7 @@ func Processtiktok(s *discordgo.Session, tiktokURL string, i *discordgo.Interact
 	message = "dont read this :)"
 	messagesent, err := s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
 		Content: &message,
+		Flags:   discordgo.MessageFlagsEphemeral,
 	})
 	s.ChannelMessageDelete(messagesent.ChannelID, messagesent.ID)
 	if err != nil {
