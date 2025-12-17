@@ -1,6 +1,5 @@
 /*
-	 TODO : make so it works in multiple servers at once??
-		fix so it doesnt panic if user isnt in a voice channel
+	 TODO :fix so it doesnt panic if user isnt in a voice channel
 		add checks if bot is in a voice channel because lonely is a funny person
 */
 package music
