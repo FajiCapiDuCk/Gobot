@@ -23,7 +23,7 @@ func main() {
 
 	if err != nil {
 		log.Fatal("Error loading .env file")
-	}
+	}	
 	Token := os.Getenv("discord_token")
 	dg, err := discordgo.New("Bot " + Token)
 	if err != nil {
@@ -328,7 +328,7 @@ func slashCommands(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		}
 		max_range := i.ApplicationCommandData().Options[1]
 		dnd := len(i.ApplicationCommandData().Options) > 2 && i.ApplicationCommandData().Options[2].BoolValue()
-		go commands.RandomNumber(s, i, int(count.IntValue()), uint32(max_range.IntValue()), dnd)
+		go commands.RandomNumber(s, i, int(count.IntValue()), int64(max_range.IntValue()), dnd)
 	case "nowplaying":
 		go music.NowPlaying(s, i)
 	case "queue":
