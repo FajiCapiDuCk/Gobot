@@ -353,6 +353,10 @@ func streamAudio(vc *discordgo.VoiceConnection, url, guildID string) error {
 	// Ensure yt-dlp closes properly
 	defer ytDlpIn.Close()
 	defer ytDlpOut.Close()
+	go func() {
+		defer ytDlpIn.Close()
+		_ = ytDlpCmd.Wait()
+	}()
 
 	ffmpegBuf := bufio.NewReaderSize(ffmpegOut, 4096)
 	send := make(chan []int16, 20)
