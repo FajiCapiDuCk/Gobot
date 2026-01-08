@@ -83,6 +83,10 @@ func Help(s *discordgo.Session, i *discordgo.InteractionCreate) {
 				Name:  "/prikol",
 				Value: "Send a random fact in chat",
 			},
+			{
+				Name:  "/tiktok",
+				Value: "Downloads tiktok VIDEOS ONLY or youtube shorts(I know command is called /tiktok I am lazy to change it)",
+			},
 		},
 		Thumbnail: &discordgo.MessageEmbedThumbnail{
 			URL: thumbnailURL,

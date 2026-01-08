@@ -23,7 +23,7 @@ func main() {
 
 	if err != nil {
 		log.Fatal("Error loading .env file")
-	}	
+	}
 	Token := os.Getenv("discord_token")
 	dg, err := discordgo.New("Bot " + Token)
 	if err != nil {
@@ -291,7 +291,7 @@ func slashCommands(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		go commands.PingCommand(s, i)
 	case "tiktok":
 		urlOption := i.ApplicationCommandData().Options[0].StringValue()
-		go commands.Processtiktok(s, urlOption, i)
+		go commands.Stealshorts(s, urlOption, i)
 	case "play":
 		url := i.ApplicationCommandData().Options[0].StringValue()
 		go music.PlayAudio(s, i, url)
