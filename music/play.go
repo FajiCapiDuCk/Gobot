@@ -1,6 +1,7 @@
 /*
 	 TODO :fix so it doesnt panic if user isnt in a voice channel
 		add checks if bot is in a voice channel because lonely is a funny person
+		global variables is the reason why playing in 2 different voice channels = funny
 */
 package music
 
@@ -32,12 +33,18 @@ type Song struct {
 	Requester string
 }
 
+type Playingmessage struct {
+	messagestruct discordgo.Message
+	first_time    bool
+}
+
 var (
-	queues      = make(map[string][]Song)
-	playing     = make(map[string]bool)
-	queuesMutex sync.Mutex
-	skipSignal  = make(map[string]chan bool)
-	currentsong = make(map[string]Song)
+	Playingmessagestruct = Playingmessage{first_time: false}
+	queues               = make(map[string][]Song)
+	playing              = make(map[string]bool)
+	queuesMutex          sync.Mutex
+	skipSignal           = make(map[string]chan bool)
+	currentsong          = make(map[string]Song)
 )
 
 const (
@@ -79,9 +86,11 @@ func CurrentlyPlaying(session *discordgo.Session, channelID string, song Song) {
 
 		author := video.Author
 		thumbnail := video.Thumbnail
-		_, err = session.ChannelMessageSend(channelID, "Now playing:")
-		if err != nil {
-			fmt.Println(err)
+		if Playingmessagestruct.first_time == false {
+			_, err = session.ChannelMessageSend(channelID, "Now playing:")
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
 
 		embed := &discordgo.MessageEmbed{
@@ -142,13 +151,17 @@ func CurrentlyPlaying(session *discordgo.Session, channelID string, song Song) {
 				},
 			},
 		}
-
-		_, err = session.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
-			Embed:      embed,
-			Components: buttons,
-		})
-		if err != nil {
-			log.Fatalf("Error sending message: %v", err)
+		complexmessage := discordgo.MessageSend{Embed: embed, Components: buttons}
+		if Playingmessagestruct.first_time == false {
+			message, err := session.ChannelMessageSendComplex(channelID, &complexmessage)
+			if err != nil {
+				log.Printf("Error sending message: %v", err)
+			}
+			Playingmessagestruct.messagestruct = *message
+			Playingmessagestruct.first_time = true
+		} else {
+			messageedit := discordgo.MessageEdit{Embed: embed, Components: &buttons, Channel: Playingmessagestruct.messagestruct.ChannelID, ID: Playingmessagestruct.messagestruct.ID}
+			session.ChannelMessageEditComplex(&messageedit)
 		}
 	}
 }
@@ -262,6 +275,7 @@ func PlayNextInQueue(s *discordgo.Session, guildID string, i *discordgo.Interact
 					delete(currentsong, guildID)
 					delete(queues, guildID)
 					delete(skipSignal, guildID)
+					Playingmessagestruct.first_time = false
 					queuesMutex.Unlock()
 					_ = vc.Disconnect()
 					_, err := s.ChannelMessageSend(i.ChannelID, "No one is in the voice channel, leaving and clearing the queue")
@@ -483,6 +497,7 @@ func leaveVoiceChannel(s *discordgo.Session, i *discordgo.InteractionCreate, gui
 		delete(queues, guildID)
 		close(skipSignal[guildID])
 		delete(skipSignal, guildID)
+		Playingmessagestruct.first_time = false
 		_, err := s.ChannelMessageSend(i.ChannelID, "Queue empty, leaving voice channel")
 		if err != nil {
 			log.Printf("Error sending leaving message: %v\n", err)
