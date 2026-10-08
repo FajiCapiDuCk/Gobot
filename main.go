@@ -293,8 +293,20 @@ func slashCommands(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		urlOption := i.ApplicationCommandData().Options[0].StringValue()
 		go commands.Stealshorts(s, urlOption, i)
 	case "play":
-		url := i.ApplicationCommandData().Options[0].StringValue()
-		go music.PlayAudio(s, i, url)
+	/*	url := i.ApplicationCommandData().Options[0].StringValue()
+		go music.PlayAudio(s, i, url) */
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "play command for now is broken due to lack of E2EE/DAVE protocol, wait when im not lazy to fix it",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+
+			if err != nil {
+				fmt.Println("Error sending interaction response:", err)
+				return
+			}
 	case "fox":
 		go commands.RandomFox(s, i)
 	case "skip":
